@@ -1,4 +1,5 @@
 
+#Make sure update the bucket name in the command below to your bucket name. You can find it in the S3 console.
 name: Deploy S3 Static Website
 
 on:
