@@ -1,0 +1,121 @@
+Resources:
+  ThreeTierVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+       - Key: Name
+         Value: ThreeTier-VPC
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: eu-north-1a
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public-Subnet-A
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: eu-north-1b
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Public-Subnet-B
+
+  PrivateApp:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      CidrBlock: 10.0.11.0/24
+      AvailabilityZone: eu-north-1a
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Private-App
+
+  PrivateDBA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      CidrBlock: 10.0.21.0/24
+      AvailabilityZone: eu-north-1a
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Private-DB-A
+
+  PrivateDBB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      CidrBlock: 10.0.22.0/24
+      AvailabilityZone: eu-north-1b
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Private-DB-B
+
+  ThreeTierIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: ThreeTier-IGW
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      InternetGatewayId:
+        Ref: ThreeTierIGW
+
+  ThreeTierPublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      Tags:
+        - Key: Name
+          Value: ThreeTier-Public-RT
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId:
+        Ref: ThreeTierPublicRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: ThreeTierIGW
+
+  PublicSubnetAssociationA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnetA
+      RouteTableId:
+        Ref: ThreeTierPublicRT
+
+  PublicSubnetAssociationB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PublicSubnetB
+      RouteTableId:
+        Ref: ThreeTierPublicRT
+ 
