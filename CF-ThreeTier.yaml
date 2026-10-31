@@ -3,8 +3,8 @@ Resources:
     Type: AWS::EC2::VPC
     Properties:
       CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: 'true'
-      EnableDnsHostnames: 'true'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
       Tags:
        - Key: Name
          Value: ThreeTier-VPC
@@ -118,4 +118,132 @@ Resources:
         Ref: PublicSubnetB
       RouteTableId:
         Ref: ThreeTierPublicRT
- 
+  ThreeTierPrivateRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ThreeTierVPC
+      Tags:
+        - Key: Name
+          Value: ThreeTier-Private-RT
+  PrivateSubnetAssociationApp:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PrivateApp
+      RouteTableId:
+        Ref: ThreeTierPrivateRT
+  PrivateSubnetAssociationDBA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PrivateDBA
+      RouteTableId:
+        Ref: ThreeTierPrivateRT
+  PrivateSubnetAssociationDBB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: PrivateDBB
+      RouteTableId:
+        Ref: ThreeTierPrivateRT
+  ThreeTierALBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow public HTTP traffic to ALB
+      VpcId:
+        Ref: ThreeTierVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ThreeTier-ALB-SG
+  ThreeTierAppSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP traffic from ALB only
+      VpcId:
+        Ref: ThreeTierVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId:
+            Ref: ThreeTierALBSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ThreeTier-App-SG
+  ThreeTierDBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow MySQL traffic from App servers only
+      VpcId:
+        Ref: ThreeTierVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId:
+            Ref: ThreeTierAppSG
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 10.0.0.0/16
+      Tags:
+        - Key: Name
+          Value: ThreeTier-DB-SG
+  ThreeTierAppTG:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckPort: traffic-port
+      Name: ThreeTier-App-TG
+      Protocol: HTTP
+      Port: 80
+      TargetType: instance
+      VpcId: 
+        Ref: ThreeTierVPC
+  ThreeTierALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn:
+      - PublicRoute
+      - PublicSubnetAssociationA
+      - PublicSubnetAssociationB
+    Properties:
+      Name: ThreeTier-ALB
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: ipv4
+      Subnets:
+        - Ref: PublicSubnetA
+        - Ref: PublicSubnetB
+      SecurityGroups:
+        - Ref: ThreeTierALBSG
+      Tags:
+        - Key: Name
+          Value: ThreeTier-ALB
+  ThreeTierALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            Ref: ThreeTierAppTG
+      LoadBalancerArn:
+        Ref: ThreeTierALB
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: ThreeTier-ALB-Listener
+              
